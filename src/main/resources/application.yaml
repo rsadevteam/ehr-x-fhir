@@ -34,15 +34,19 @@ spring:
     baselineOnMigrate: true
     fail-on-missing-locations: false
   datasource:
-    #url: 'jdbc:h2:file:./target/database/h2'
-    url: jdbc:h2:mem:test_mem
-    username: sa
-    password: null
-    driverClassName: org.h2.Driver
+    url: jdbc:oracle:thin:@//${DB_HOST}:${DB_PORT}/${DB_SN}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driverClassName: oracle.jdbc.OracleDriver
     max-active: 15
 
     # database connection pool size
     hikari:
+      connectionTestQuery: SELECT 1 FROM DUAL
+      connection-timeout: 300000
+      idle-timeout: 15000
+      max-lifetime: 35000
+      validationTimeout: 300000
       maximum-pool-size: 10
   jpa:
     properties:
@@ -52,7 +56,7 @@ spring:
       #Hibernate dialect is automatically detected except Postgres and H2.
       #If using H2, then supply the value of ca.uhn.fhir.jpa.model.dialect.HapiFhirH2Dialect
       #If using postgres, then supply the value of ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
-      hibernate.dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirH2Dialect
+      hibernate.dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirOracleDialect
   #      hibernate.hbm2ddl.auto: update
   #      hibernate.jdbc.batch_size: 20
   #      hibernate.cache.use_query_cache: false
@@ -61,13 +65,13 @@ spring:
   #      hibernate.cache.use_minimal_puts: false
 
   ###    These settings will enable fulltext search with lucene or elastic
-      hibernate.search.enabled: false
+      hibernate.search.enabled: true
   ### lucene parameters
-#      hibernate.search.backend.type: lucene
-#      hibernate.search.backend.analysis.configurer: ca.uhn.fhir.jpa.search.HapiHSearchAnalysisConfigurers$HapiLuceneAnalysisConfigurer
-#      hibernate.search.backend.directory.type: local-filesystem
-#      hibernate.search.backend.directory.root: target/lucenefiles
-#      hibernate.search.backend.lucene_version: lucene_current
+      hibernate.search.backend.type: lucene
+      hibernate.search.backend.analysis.configurer: ca.uhn.fhir.jpa.search.HapiHSearchAnalysisConfigurers$HapiLuceneAnalysisConfigurer
+      hibernate.search.backend.directory.type: local-filesystem
+      hibernate.search.backend.directory.root: target/lucenefiles
+      hibernate.search.backend.lucene_version: lucene_current
   ### elastic parameters ===> see also elasticsearch section below <===
 #      hibernate.search.backend.type: elasticsearch
 #      hibernate.search.backend.analysis.configurer: ca.uhn.fhir.jpa.search.HapiHSearchAnalysisConfigurers$HapiElasticAnalysisConfigurer
@@ -126,7 +130,7 @@ hapi:
     ### This enables the swagger-ui at /fhir/swagger-ui/index.html as well as the /fhir/api-docs (see https://hapifhir.io/hapi-fhir/docs/server_plain/openapi.html)
     openapi_enabled: true
     ### This is the FHIR version. Choose between, DSTU2, DSTU3, R4 or R5
-    fhir_version: R4
+    fhir_version: R5
     ### Flag is false by default. This flag enables runtime installation of IG's.
     ig_runtime_upload_enabled: false
     ### This flag when enabled to true, will avail evaluate measure operations from CR Module.
@@ -136,7 +140,7 @@ hapi:
     #   use_apache_address_strategy: false
     ### forces the use of the https:// protocol for the returned server address.
     ### alternatively, it may be set using the X-Forwarded-Proto header.
-    #   use_apache_address_strategy_https: false
+    use_apache_address_strategy_https: true
     ### enables the server to overwrite defaults on HTML, css, etc. under the url pattern of eg. /content/custom **
     ### Folder with custom content MUST be named custom. If omitted then default content applies
     #custom_content_path: ./custom
@@ -144,7 +148,7 @@ hapi:
     ### will be served under /web/app
     #app_content_path: ./configs/app
     ### enable to set the Server URL
-    #    server_address: http://hapi.fhir.org/baseR4
+    server_address: http://localhost:8081/api/v1/fhir/r5
     #    defer_indexing_for_codesystems_of_size: 101
     #    install_transitive_ig_dependencies: true
     #implementationguides:
@@ -167,7 +171,7 @@ hapi:
     ##################################################
     #    allowed_bundle_types: COLLECTION,DOCUMENT,MESSAGE,TRANSACTION,TRANSACTIONRESPONSE,BATCH,BATCHRESPONSE,HISTORY,SEARCHSET
     #    allow_cascading_deletes: true
-    #    allow_contains_searches: true
+    allow_contains_searches: true
     #    allow_external_references: true
     #    allow_multiple_delete: true
     #    allow_override_default_search_params: true
@@ -176,9 +180,9 @@ hapi:
     ### tells the server to automatically append the current version of the target resource to references at these paths
     #    auto_version_reference_at_paths: Device.patient, Device.location, Device.parent, DeviceMetric.parent, DeviceMetric.source, Observation.device, Observation.subject
     #    ips_enabled: false
-    #    default_encoding: JSON
-    #    default_pretty_print: true
-    #    default_page_size: 20
+    default_encoding: JSON
+    default_pretty_print: true
+    default_page_size: 20
     #    delete_expunge_enabled: true
     #    enable_repository_validating_interceptor: true
     #    enable_index_missing_fields: false
@@ -197,8 +201,8 @@ hapi:
     #    enforce_referential_integrity_on_write: false
     #    etag_support_enabled: true
     #    expunge_enabled: true
-    #    client_id_strategy: ALPHANUMERIC
-    #    server_id_strategy: SEQUENTIAL_NUMERIC
+    client_id_strategy: ANY
+    server_id_strategy: UUID
     #    fhirpath_interceptor_enabled: false
     #    filter_search_enabled: true
     #    graphql_enabled: true
@@ -216,6 +220,8 @@ hapi:
       - https://unitsofmeasure.org/*
       - http://loinc.org/*
       - https://loinc.org/*
+      - http://medicare.com/*
+      - https://medicare.com/*
     #    partitioning:
     #      allow_references_across_partitions: false
     #      partitioning_include_in_search_hashes: false
@@ -265,12 +271,12 @@ hapi:
         name: Local Tester
         server_address: 'http://localhost:8080/fhir'
         refuse_to_fetch_third_party_urls: false
-        fhir_version: R4
+        fhir_version: R5
       global:
         name: Global Tester
-        server_address: "http://hapi.fhir.org/baseR4"
+        server_address: "http://hapi.fhir.org/baseR5"
         refuse_to_fetch_third_party_urls: false
-        fhir_version: R4
+        fhir_version: R5
     #    validation:
     #      requests_enabled: true
     #      responses_enabled: true
@@ -278,7 +284,7 @@ hapi:
     inline_resource_storage_below_size: 4000
 #    bulk_export_enabled: true
 #    subscription:
-#      resthook_enabled: true
+    resthook_enabled: true
 #      websocket_enabled: false
 #      email:
 #        from: some@test.com
@@ -291,7 +297,7 @@ hapi:
 #        startTlsRequired:
 #        quitWait:
 #    lastn_enabled: true
-#    store_resource_in_lucene_index_enabled: true
+    store_resource_in_lucene_index_enabled: true
 ###  This is configuration for normalized quantity search level default is 0
 ###   0: NORMALIZED_QUANTITY_SEARCH_NOT_SUPPORTED - default
 ###   1: NORMALIZED_QUANTITY_STORAGE_SUPPORTED
