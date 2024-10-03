@@ -128,7 +128,7 @@ hapi:
       clientIdHeaderName: client_id
 
     ### This enables the swagger-ui at /fhir/swagger-ui/index.html as well as the /fhir/api-docs (see https://hapifhir.io/hapi-fhir/docs/server_plain/openapi.html)
-    openapi_enabled: true
+    openapi_enabled: false
     ### This is the FHIR version. Choose between, DSTU2, DSTU3, R4 or R5
     fhir_version: R5
     ### Flag is false by default. This flag enables runtime installation of IG's.
